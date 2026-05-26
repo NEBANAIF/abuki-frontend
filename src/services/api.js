@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-   baseURL: '/api',   // ← nginx proxies this to http://backend:8080/api
+  baseURL: import.meta.env.VITE_API_URL || 'https://abuki-backend.onrender.com/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -59,7 +59,7 @@ export const getSaleById = (id)   => api.get(`/sales/${id}`).then(r => r.data);
 export const recordSale  = (data) => api.post('/sales', data).then(r => r.data);
 export const deleteSale  = (id)   => api.delete(`/sales/${id}`).then(r => r.data);
 
-// ── ANALYTICS (database-backed KPIs & series) ─────────────
+// ── ANALYTICS ─────────────────────────────────────────────
 export const getAnalyticsDashboard = (params) =>
   api.get('/analytics/dashboard', { params }).then(r => r.data);
 
@@ -69,7 +69,7 @@ export const createExpense = (data)     => api.post('/expenses', data).then(r =>
 export const updateExpense = (id, data) => api.put(`/expenses/${id}`, data).then(r => r.data);
 export const deleteExpense = (id)       => api.delete(`/expenses/${id}`).then(r => r.data);
 
-// ── STOCK HISTORY ──────────────────                                                                                                            ───────────────────────
+// ── STOCK HISTORY ─────────────────────────────────────────
 export const getStockHistory          = ()   => api.get('/stock-history').then(r => r.data);
 export const getStockHistoryByProduct = (id) => api.get(`/stock-history/product/${id}`).then(r => r.data);
 export const deleteStockHistory       = (id) => api.delete(`/stock-history/${id}`).then(r => r.data);
