@@ -8,7 +8,6 @@ import Finance      from './pages/Finance';
 import Analytics    from './pages/Analytics';
 import StockHistory from './pages/StockHistory';
 import UserAccess   from './pages/UserAccess';
-import { getMe }   from './services/api';
 
 export default function App() {
   const [user, setUser] = useState(() => {
@@ -30,24 +29,11 @@ export default function App() {
     try { localStorage.setItem('abuki_theme', dark ? 'dark' : 'light'); } catch {}
   }, [dark]);
 
-  useEffect(() => {
-    const token = localStorage.getItem('abuki_token');
-    if (!token) return;
-    getMe()
-      .then(u => {
-        const next = { id: u.id, name: u.name, email: u.email, role: u.role };
-        setUser(next);
-        localStorage.setItem('abuki_user', JSON.stringify(next));
-      })
-      .catch(() => {
-        localStorage.removeItem('abuki_token');
-        localStorage.removeItem('abuki_user');
-        setUser(null);
-      });
-  }, []);
-
   function handleLogin(data) {
-    setUser({ id: data.id, name: data.name, email: data.email, role: data.role });
+    const u = { id: data.id, name: data.name, email: data.email, role: data.role };
+    setUser(u);
+    localStorage.setItem('abuki_user', JSON.stringify(u));
+    localStorage.setItem('abuki_token', data.token);
   }
 
   function handleLogout() {
