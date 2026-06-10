@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Search, Plus, Edit2, Trash2, Package, AlertTriangle,
   XCircle, RefreshCw, ChevronLeft, ChevronRight, X, Save,
-  PackageMinus, PackagePlus, Filter,
+  PackageMinus, PackagePlus, Filter, SlidersHorizontal,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -150,13 +150,30 @@ const PRODUCTS_CSS = `
       -webkit-overflow-scrolling: touch !important;
       scroll-behavior: smooth;
     }
-    .abk-prod-table-wrap table { min-width: 640px; }
+    .abk-prod-table-wrap table { min-width: 480px; }
     .abk-prod-table-wrap th { padding: 8px 8px !important; font-size: 9px !important; }
     .abk-prod-table-wrap td { padding: 8px 8px !important; font-size: 11.5px !important; }
+    /* Hide less critical columns on mobile */
+    .abk-prod-col-sku,
+    .abk-prod-col-cost { display: none !important; }
     .abk-prod-header  { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
     .abk-prod-header > * { width: 100% !important; }
     .abk-prod-modal-grid { grid-template-columns: 1fr !important; }
   }
+
+  /* Autocomplete dropdown */
+  .abk-autocomplete { position: relative; }
+  .abk-autocomplete-list {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 220px; overflow-y: auto;
+  }
+  .abk-autocomplete-item {
+    padding: 9px 12px; cursor: pointer; font-size: 13px; color: var(--ink);
+    transition: background .12s; display: flex; align-items: center; justify-content: space-between;
+  }
+  .abk-autocomplete-item:hover, .abk-autocomplete-item.active { background: var(--card-hover); }
+  .abk-autocomplete-item:not(:last-child) { border-bottom: 1px solid var(--border-light); }
 
   @media (max-width:480px) {
     .abk-prod-pad { padding: 0.75rem 0.5rem 2rem !important; }
@@ -299,6 +316,93 @@ function BtnSecondary({ onClick, children }) {
       onMouseEnter={e => e.currentTarget.style.background = 'var(--border)'}
       onMouseLeave={e => e.currentTarget.style.background = 'var(--cream-deep)'}
     >{children}</button>
+  );
+}
+
+/* ── Product Autocomplete ─────────────────────────────────────────────────── */
+function ProductAutocomplete({ products, value, onChange, placeholder }) {
+  const [query, setQuery]   = useState('');
+  const [open,  setOpen]    = useState(false);
+  const [active, setActive] = useState(-1);
+  const ref = useRef(null);
+
+  // Sync display value when external value changes
+  useEffect(() => {
+    const p = products.find(p => String(p.id) === String(value));
+    setQuery(p ? p.name : '');
+  }, [value, products]);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filtered = products.filter(p =>
+    !query || p.name.toLowerCase().includes(query.toLowerCase()) || p.sku?.toLowerCase().includes(query.toLowerCase())
+  );
+
+  function select(p) {
+    onChange(p.id);
+    setQuery(p.name);
+    setOpen(false);
+    setActive(-1);
+  }
+
+  function handleKey(e) {
+    if (!open) { setOpen(true); return; }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); setActive(a => Math.min(a + 1, filtered.length - 1)); }
+    if (e.key === 'ArrowUp')    { e.preventDefault(); setActive(a => Math.max(a - 1, 0)); }
+    if (e.key === 'Enter' && active >= 0) { e.preventDefault(); select(filtered[active]); }
+    if (e.key === 'Escape')     { setOpen(false); }
+  }
+
+  return (
+    <div className="abk-autocomplete" ref={ref}>
+      <div style={{ position:'relative' }}>
+        <Search size={13} style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', color:'var(--ink-faint)', pointerEvents:'none' }} />
+        <input
+          value={query}
+          onChange={e => { setQuery(e.target.value); setOpen(true); onChange(''); setActive(-1); }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={handleKey}
+          placeholder={placeholder || 'Search product…'}
+          className="abk-input"
+          style={{ paddingLeft: 32 }}
+          autoComplete="off"
+        />
+        {query && (
+          <button onClick={() => { setQuery(''); onChange(''); setOpen(false); }} style={{ position:'absolute', right:9, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'var(--ink-faint)', display:'flex', padding:2 }}>
+            <X size={13} />
+          </button>
+        )}
+      </div>
+      {open && filtered.length > 0 && (
+        <div className="abk-autocomplete-list">
+          {filtered.map((p, i) => (
+            <div key={p.id} className={`abk-autocomplete-item${i === active ? ' active' : ''}`} onMouseDown={() => select(p)}>
+              <div>
+                <div style={{ fontWeight:500 }}>{p.name}</div>
+                <div style={{ fontSize:11, color:'var(--ink-faint)', fontFamily:'monospace' }}>{p.sku}</div>
+              </div>
+              <div style={{ fontSize:11, color:'var(--ink-light)', textAlign:'right' }}>
+                <div style={{ fontWeight:500 }}>${p.price}</div>
+                <div style={{ color: p.stock === 0 ? 'var(--red-text)' : p.stock <= (p.minStock||30) ? 'var(--amber)' : 'var(--ink-faint)' }}>
+                  Stock: {p.stock}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {open && filtered.length === 0 && query && (
+        <div className="abk-autocomplete-list">
+          <div style={{ padding:'12px', fontSize:12, color:'var(--ink-faint)', textAlign:'center' }}>No products found</div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -536,11 +640,16 @@ export default function Products({ dark }) {
               <thead>
                 <tr style={{ background:'var(--cream-deep)', borderBottom:'1px solid var(--border)' }}>
                   {[
-                    t('sales.product'), t('products.sku'), t('products.category'),
-                    t('products.sellingPrice'), t('products.costPrice'),
-                    t('products.currentStock'), 'Status', t('ui.actions'),
-                  ].map(h => (
-                    <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:10, fontWeight:600, letterSpacing:'0.10em', textTransform:'uppercase', color:'var(--ink-light)', whiteSpace:'nowrap' }}>{h}</th>
+                    { label: t('sales.product') },
+                    { label: t('products.sku'), cls: 'abk-prod-col-sku' },
+                    { label: t('products.category') },
+                    { label: t('products.sellingPrice') },
+                    { label: t('products.costPrice'), cls: 'abk-prod-col-cost' },
+                    { label: t('products.currentStock') },
+                    { label: 'Status' },
+                    { label: t('ui.actions') },
+                  ].map(({ label, cls }) => (
+                    <th key={label} className={cls || ''} style={{ padding:'10px 14px', textAlign:'left', fontSize:10, fontWeight:600, letterSpacing:'0.10em', textTransform:'uppercase', color:'var(--ink-light)', whiteSpace:'nowrap' }}>{label}</th>
                   ))}
                 </tr>
               </thead>
@@ -564,7 +673,7 @@ export default function Products({ dark }) {
                         {p.description && <div style={{ fontSize:11, color:'var(--ink-faint)', marginTop:2, maxWidth:150, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontWeight:300 }}>{p.description}</div>}
                       </td>
                       {/* SKU */}
-                      <td style={{ padding:'11px 14px', fontFamily:'monospace', fontSize:12, color:'var(--ink-light)' }}>{p.sku}</td>
+                      <td className="abk-prod-col-sku" style={{ padding:'11px 14px', fontFamily:'monospace', fontSize:12, color:'var(--ink-light)' }}>{p.sku}</td>
                       {/* Category */}
                       <td style={{ padding:'11px 14px' }}>
                         {p.category
@@ -578,7 +687,7 @@ export default function Products({ dark }) {
                         </span>
                       </td>
                       {/* Cost price */}
-                      <td style={{ padding:'11px 14px', fontSize:12, color:'var(--ink-faint)', fontWeight:300 }}>
+                      <td className="abk-prod-col-cost" style={{ padding:'11px 14px', fontSize:12, color:'var(--ink-faint)', fontWeight:300 }}>
                         ${(p.cost ?? 0).toLocaleString(undefined, { minimumFractionDigits:2, maximumFractionDigits:2 })}
                       </td>
                       {/* Stock */}
@@ -602,16 +711,8 @@ export default function Products({ dark }) {
                           <button onClick={() => setDeleteConfirm(p)} className="abk-btn-icon" style={{ width:28, height:28, background:'var(--red-bg)', color:'var(--red-text)', border:'1px solid var(--red-border)' }} title="Delete">
                             <Trash2 size={12} />
                           </button>
-                          <button onClick={() => { setStockModal(p); setStockMode('add'); setStockQty(''); setStockReason(''); }} style={{
-                            display:'inline-flex', alignItems:'center', gap:4, padding:'4px 10px',
-                            background:'var(--green-bg)', color:'var(--green)', border:'1px solid rgba(29,158,117,.25)',
-                            borderRadius:8, fontSize:11, fontWeight:500, cursor:'pointer', fontFamily:'DM Sans,sans-serif',
-                            transition:'background .15s',
-                          }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(29,158,117,.18)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'var(--green-bg)'}
-                          >
-                            <PackagePlus size={11} /> {t('products.adjustStock')}
+                          <button onClick={() => { setStockModal(p); setStockMode('add'); setStockQty(''); setStockReason(''); }} className="abk-btn-icon" style={{ width:28, height:28, background:'var(--green-bg)', color:'var(--green)', border:'1px solid rgba(29,158,117,.25)' }} title={t('products.adjustStock')}>
+                            <SlidersHorizontal size={12} />
                           </button>
                         </div>
                       </td>
@@ -708,8 +809,18 @@ export default function Products({ dark }) {
 
               <div className="abk-prod-modal-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
-                  <label className="abk-label">{t('products.initialStock')}</label>
-                  <input type="number" min="0" value={form.stock} onChange={e => setForm(f => ({ ...f, stock:e.target.value }))} placeholder="0" className="abk-input" />
+                  <label className="abk-label">{t('products.initialStock')}{editProduct ? ' (use Adjust Stock)' : ''}</label>
+                  <input
+                    type="number" min="0"
+                    value={editProduct ? (editProduct.stock ?? '') : form.stock}
+                    onChange={e => { if (!editProduct) setForm(f => ({ ...f, stock:e.target.value })); }}
+                    readOnly={!!editProduct}
+                    placeholder="0"
+                    className="abk-input"
+                    style={editProduct ? { opacity:.55, cursor:'not-allowed', background:'var(--cream-deep)' } : {}}
+                    title={editProduct ? 'Use the Adjust Stock button to change stock level' : ''}
+                  />
+                  {editProduct && <div style={{ fontSize:10, color:'var(--ink-faint)', marginTop:3, fontWeight:300 }}>Use Adjust Stock (⊞) to modify inventory.</div>}
                 </div>
                 <div>
                   <label className="abk-label">{t('products.minStockAlert')}</label>

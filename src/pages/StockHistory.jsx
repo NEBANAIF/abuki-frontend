@@ -99,12 +99,15 @@ const GLOBAL_CSS = `
 function fmtDate(dateStr, timeStr) {
   if (!dateStr) return { date: '—', time: '' };
   try {
-    const dt = new Date(dateStr + 'T' + (timeStr || '00:00:00'));
+    // Truncate time to HH:mm:ss to avoid nanosecond precision rejection (Java LocalTime serialises as HH:mm:ss.nnnnnnnnn)
+    const safeTime = timeStr ? timeStr.replace(/(\d{2}:\d{2}:\d{2}).*/, '$1') : '00:00:00';
+    const dt = new Date(dateStr + 'T' + safeTime);
+    if (isNaN(dt.getTime())) return { date: dateStr, time: timeStr || '' };
     return {
       date: dt.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       time: dt.toLocaleString('en-US', { hour: '2-digit', minute: '2-digit' }),
     };
-  } catch { return { date: dateStr, time: '' }; }
+  } catch { return { date: dateStr, time: timeStr || '' }; }
 }
 
 // Per-type config: colors use CSS vars, not Tailwind

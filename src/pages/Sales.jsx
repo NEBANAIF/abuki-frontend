@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Search, Plus, Trash2, DollarSign, ShoppingCart,
   TrendingUp, ChevronLeft, ChevronRight, X, RefreshCw,
@@ -164,6 +164,20 @@ const SALES_CSS = `
     input, select, textarea { font-size: 16px !important; }
   }
 
+  /* Autocomplete dropdown */
+  .abk-sales-ac { position: relative; }
+  .abk-sales-ac-list {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 200px; overflow-y: auto;
+  }
+  .abk-sales-ac-item {
+    padding: 9px 12px; cursor: pointer; font-size: 13px; color: var(--ink);
+    transition: background .12s; display: flex; align-items: center; justify-content: space-between;
+  }
+  .abk-sales-ac-item:hover, .abk-sales-ac-item.ac-active { background: var(--card-hover); }
+  .abk-sales-ac-item:not(:last-child) { border-bottom: 1px solid var(--border-light); }
+
 `;
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
@@ -288,6 +302,81 @@ function KpiCard({ label, value, sub, Icon, stripeColor, iconBg, iconColor, prog
           animationDelay:`calc(${delay} + .5s)`,
         }} />
       </div>
+    </div>
+  );
+}
+
+/* ── Product Autocomplete ─────────────────────────────────────────────────── */
+function ProductAutocomplete({ products, value, onChange, placeholder }) {
+  const [query,  setQuery]  = useState('');
+  const [open,   setOpen]   = useState(false);
+  const [active, setActive] = useState(-1);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const p = products.find(p => String(p.id) === String(value));
+    setQuery(p ? `${p.name} — $${p.price}` : '');
+  }, [value, products]);
+
+  useEffect(() => {
+    function handler(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = products.filter(p =>
+    !query || p.name.toLowerCase().includes(query.toLowerCase()) || p.sku?.toLowerCase().includes(query.toLowerCase())
+  );
+
+  function select(p) { onChange(p.id); setQuery(`${p.name} — $${p.price}`); setOpen(false); setActive(-1); }
+
+  function handleKey(e) {
+    if (!open) { setOpen(true); return; }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); setActive(a => Math.min(a+1, filtered.length-1)); }
+    if (e.key === 'ArrowUp')    { e.preventDefault(); setActive(a => Math.max(a-1, 0)); }
+    if (e.key === 'Enter' && active >= 0) { e.preventDefault(); select(filtered[active]); }
+    if (e.key === 'Escape')     { setOpen(false); }
+  }
+
+  return (
+    <div className="abk-sales-ac" ref={ref}>
+      <div style={{ position:'relative' }}>
+        <Search size={13} style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', color:'var(--ink-faint)', pointerEvents:'none' }} />
+        <input
+          value={open && !value ? query : (value ? query : '')}
+          onChange={e => { setQuery(e.target.value); setOpen(true); onChange(''); setActive(-1); }}
+          onFocus={() => { setOpen(true); if (value) setQuery(''); }}
+          onBlur={() => { setTimeout(() => {
+            const p = products.find(p => String(p.id) === String(value));
+            if (!value) setQuery(''); else setQuery(`${p?.name} — $${p?.price}`);
+          }, 150); }}
+          onKeyDown={handleKey}
+          placeholder={placeholder || 'Search product…'}
+          className="abk-input"
+          style={{ paddingLeft:32 }}
+          autoComplete="off"
+        />
+        {(query || value) && (
+          <button onMouseDown={() => { setQuery(''); onChange(''); setOpen(false); }} style={{ position:'absolute', right:9, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'var(--ink-faint)', display:'flex', padding:2 }}>
+            <X size={13} />
+          </button>
+        )}
+      </div>
+      {open && (
+        <div className="abk-sales-ac-list">
+          {filtered.length === 0 ? (
+            <div style={{ padding:'12px', fontSize:12, color:'var(--ink-faint)', textAlign:'center' }}>No products available</div>
+          ) : filtered.map((p, i) => (
+            <div key={p.id} className={`abk-sales-ac-item${i === active ? ' ac-active' : ''}`} onMouseDown={() => select(p)}>
+              <div>
+                <div style={{ fontWeight:500, fontSize:13 }}>{p.name}</div>
+                <div style={{ fontSize:11, color:'var(--ink-faint)', fontFamily:'monospace' }}>SKU: {p.sku} · Stock: {p.stock}</div>
+              </div>
+              <div style={{ fontSize:13, fontWeight:600, color:'var(--green)' }}>${p.price}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -537,7 +626,14 @@ export default function Sales({ dark }) {
             borderRadius:'16px 16px 0 0',
           }}>
             <div className="abk-serif" style={{ fontSize:14, fontWeight:500, color:'var(--ink)' }}>{t('sales.salesHistory')}</div>
-            <span style={{ fontSize:11, color:'var(--ink-faint)', fontWeight:300 }}>{filtered.length} {t('dashboard.records')}</span>
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              {(search || dateFilter) && (
+                <span style={{ fontSize:11, color:'var(--green)', fontWeight:600 }}>
+                  Total: ${filtered.reduce((s, r) => s + (r.total || 0), 0).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 })}
+                </span>
+              )}
+              <span style={{ fontSize:11, color:'var(--ink-faint)', fontWeight:300 }}>{filtered.length} {t('dashboard.records')}</span>
+            </div>
           </div>
 
           <div className="abk-sales-table-wrap" style={{ overflowX:'auto', borderRadius:'0 0 16px 16px' }}>
@@ -661,15 +757,15 @@ export default function Sales({ dark }) {
 
             <div style={{ padding:'1.2rem 1.4rem', display:'flex', flexDirection:'column', gap:14 }}>
 
-              {/* Product select */}
+              {/* Product autocomplete */}
               <div>
                 <label className="abk-label">{t('sales.product')} *</label>
-                <select value={form.productId} onChange={e => handleProductChange(e.target.value)} className="abk-input" style={{ cursor:'pointer' }}>
-                  <option value="">{t('sales.selectProduct')}</option>
-                  {products.filter(p => p.stock > 0).map(p => (
-                    <option key={p.id} value={p.id}>{p.name} — ${p.price} ({t('sales.stock')}: {p.stock})</option>
-                  ))}
-                </select>
+                <ProductAutocomplete
+                  products={products.filter(p => p.stock > 0)}
+                  value={form.productId}
+                  onChange={handleProductChange}
+                  placeholder={t('sales.selectProduct')}
+                />
                 {products.filter(p => p.stock > 0).length === 0 && (
                   <div style={{ fontSize:11, color:'var(--red-text)', marginTop:5, display:'flex', alignItems:'center', gap:4 }}>
                     <XCircle size={11} /> {t('sales.noProductsAvailable')}

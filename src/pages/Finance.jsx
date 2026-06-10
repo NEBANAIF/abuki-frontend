@@ -318,6 +318,8 @@ export default function Finance({ dark }) {
   const [search,         setSearch]          = useState('');
   const [catFilter,      setCatFilter]       = useState('ALL');
   const [dateFilter,     setDateFilter]      = useState('');
+  const [dateFrom,       setDateFrom]        = useState('');
+  const [dateTo,         setDateTo]          = useState('');
   const [page,           setPage]            = useState(1);
   const [rowsPerPage,     setRowsPerPage]     = useState(10);
   const [summary,        setSummary]         = useState(null);
@@ -375,9 +377,12 @@ export default function Finance({ dark }) {
 
   const filteredExp = allExpenses.filter(e => {
     const q = search.toLowerCase();
+    const d = String(e.date);
     return (!search || e.category?.toLowerCase().includes(q) || e.description?.toLowerCase().includes(q))
       && (catFilter === 'ALL' || e.category === catFilter)
-      && (!dateFilter || String(e.date) === dateFilter);
+      && (!dateFilter || d === dateFilter)
+      && (!dateFrom || d >= dateFrom)
+      && (!dateTo   || d <= dateTo);
   });
   const totalPages = Math.max(1, Math.ceil(filteredExp.length / rowsPerPage));
   const paginated  = filteredExp.slice((page-1)*rowsPerPage, page*rowsPerPage);
@@ -443,7 +448,7 @@ export default function Finance({ dark }) {
      RENDER
      ════════════════════════════════════════════════════════════════════════ */
   return (
-    <div className={`abk-fin abk-texture${dark?' abk-dark':''}`} style={{ background:'var(--cream)', minHeight:'100vh', position:'relative', transition:'background .3s' }}>
+    <div className={`abk-fin abk-texture${dark?' abk-dark':''}`} style={{ background:'var(--cream)', minHeight:'100vh', width:'100%', maxWidth:'100%', position:'relative', transition:'background .3s', overflowX:'hidden' }}>
 
       {/* Toast */}
       {successMsg && (
@@ -704,10 +709,14 @@ export default function Finance({ dark }) {
               </select>
               <div style={{ position:'relative' }}>
                 <Calendar size={13} style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', color:'var(--ink-faint)', pointerEvents:'none' }} />
-                <input type="date" value={dateFilter} onChange={e => { setDateFilter(e.target.value); setPage(1); }} className="abk-input" style={{ paddingLeft:32, minWidth:155, cursor:'pointer', colorScheme:dark?'dark':'light' }} />
+                <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} className="abk-input" style={{ paddingLeft:32, minWidth:140, cursor:'pointer', colorScheme:dark?'dark':'light' }} placeholder="From" title="From date" />
               </div>
-              {(search || catFilter !== 'ALL' || dateFilter) && (
-                <button onClick={() => { setSearch(''); setCatFilter('ALL'); setDateFilter(''); setPage(1); }} style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'0 13px', background:'var(--red-bg)', border:'1px solid var(--red-border)', borderRadius:10, color:'var(--red-text)', fontSize:12, cursor:'pointer', fontFamily:'DM Sans,sans-serif' }}>
+              <div style={{ position:'relative' }}>
+                <Calendar size={13} style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', color:'var(--ink-faint)', pointerEvents:'none' }} />
+                <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} className="abk-input" style={{ paddingLeft:32, minWidth:140, cursor:'pointer', colorScheme:dark?'dark':'light' }} placeholder="To" title="To date" />
+              </div>
+              {(search || catFilter !== 'ALL' || dateFilter || dateFrom || dateTo) && (
+                <button onClick={() => { setSearch(''); setCatFilter('ALL'); setDateFilter(''); setDateFrom(''); setDateTo(''); setPage(1); }} style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'0 13px', background:'var(--red-bg)', border:'1px solid var(--red-border)', borderRadius:10, color:'var(--red-text)', fontSize:12, cursor:'pointer', fontFamily:'DM Sans,sans-serif' }}>
                   <X size={12} /> {t('ui.clear')}
                 </button>
               )}
