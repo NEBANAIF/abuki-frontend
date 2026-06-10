@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   TrendingUp, TrendingDown, DollarSign, Plus, Trash2,
@@ -187,14 +187,28 @@ function calcFinancials(sales, expenses) {
   const netMargin     = revenue > 0 ? (netProfit   / revenue) * 100 : 0;
   return { revenue, cogs, totalExpenses, grossProfit, netProfit, grossMargin, netMargin };
 }
-function getRange(period) {
-  const today = localYMD();
-  const labels = { day:'Today', week:'Last 7 Days', month:'This Month', year:'This Year', all:'All Time' };
-  if (period === 'day')   return { from:today,                  to:today, label:labels.day   };
-  if (period === 'week')  return { from:addDaysYMD(today, -6),  to:today, label:labels.week  };
-  if (period === 'month') return { from:startOfMonthYMD(),      to:today, label:labels.month };
-  if (period === 'year')  return { from:startOfYearYMD(),       to:today, label:labels.year  };
-  return { from:'2000-01-01', to:today, label:labels.all };
+// ── Finance date range resolver ──────────────────────────────────────────────
+// Supports: day · week · month · year · custom
+function getRange(period, customFrom, customTo) {
+  const today  = localYMD();
+  const labels = {
+    day:    'Today',
+    week:   'Last 7 Days',
+    month:  'This Month',
+    year:   'This Year',
+    custom: 'Custom Range',
+  };
+  if (period === 'day')    return { from: today,                 to: today,  label: labels.day   };
+  if (period === 'week')   return { from: addDaysYMD(today, -6), to: today,  label: labels.week  };
+  if (period === 'month')  return { from: startOfMonthYMD(),     to: today,  label: labels.month };
+  if (period === 'year')   return { from: startOfYearYMD(),      to: today,  label: labels.year  };
+  if (period === 'custom') {
+    const from = customFrom || today;
+    const to   = customTo   || today;
+    return { from: from < to ? from : to, to: from < to ? to : from, label: labels.custom };
+  }
+  // fallback — all time
+  return { from: '2000-01-01', to: today, label: 'All Time' };
 }
 
 const EXPENSE_CATEGORIES = [
@@ -293,6 +307,8 @@ export default function Finance({ dark }) {
   const [loading,        setLoading]         = useState(true);
   const [error,          setError]           = useState(false);
   const [period,         setPeriod]          = useState('month');
+  const [customFrom,     setCustomFrom]      = useState(localYMD());
+  const [customTo,       setCustomTo]        = useState(localYMD());
   const [activeTab,      setActiveTab]       = useState('overview');
   const [showModal,      setShowModal]       = useState(false);
   const [form,           setForm]            = useState(() => emptyExpenseForm());
@@ -303,7 +319,7 @@ export default function Finance({ dark }) {
   const [catFilter,      setCatFilter]       = useState('ALL');
   const [dateFilter,     setDateFilter]      = useState('');
   const [page,           setPage]            = useState(1);
-  const [rowsPerPage]                        = useState(10);
+  const [rowsPerPage,     setRowsPerPage]     = useState(10);
   const [summary,        setSummary]         = useState(null);
   const [compare,        setCompare]         = useState([]);
   const [metricsTick,    setMetricsTick]     = useState(0);
@@ -322,7 +338,7 @@ export default function Finance({ dark }) {
 
   useEffect(() => {
     let cancelled = false;
-    const r = getRange(period);
+    const r = getRange(period, customFrom, customTo);
     (async () => {
       try {
         const s = await getAnalyticsDashboard({ from:r.from, to:r.to, granularity:'day', includeSeries:false });
@@ -351,7 +367,7 @@ export default function Finance({ dark }) {
 
   function showSuccess(msg) { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(''), 3200); }
 
-  const range          = getRange(period);
+  const range          = getRange(period, customFrom, customTo);
   const periodSales    = allSales.filter(s => String(s.saleDate).slice(0,10) >= range.from && String(s.saleDate).slice(0,10) <= range.to);
   const periodExpenses = allExpenses.filter(e => String(e.date).slice(0,10) >= range.from && String(e.date).slice(0,10) <= range.to);
   const finFallback    = calcFinancials(periodSales, periodExpenses);
@@ -392,7 +408,7 @@ export default function Finance({ dark }) {
     } catch (e) { alert('Failed to delete: ' + e.message); }
   }
 
-  const periodRows = compare.length > 0 ? compare : ['day','week','month','year','all'].map(p => {
+  const periodRows = compare.length > 0 ? compare : ['day','week','month','year'].map(p => {
     const r = getRange(p);
     const s = allSales.filter(x => String(x.saleDate).slice(0,10) >= r.from && String(x.saleDate).slice(0,10) <= r.to);
     const e = allExpenses.filter(x => String(x.date).slice(0,10) >= r.from && String(x.date).slice(0,10) <= r.to);
@@ -465,11 +481,11 @@ export default function Finance({ dark }) {
           <span style={{ fontSize:10.5, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.10em', color:'var(--ink-light)', marginRight:2 }}>{t('finance.period')}:</span>
           <div style={{ display:'flex', gap:4, background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:4, boxShadow:'0 1px 4px rgba(0,0,0,.05)' }}>
             {[
-              { key:'day',   label:t('finance.today')   },
-              { key:'week',  label:t('finance.week')    },
-              { key:'month', label:t('finance.month')   },
-              { key:'year',  label:t('finance.year')    },
-              { key:'all',   label:t('finance.allTime') },
+              { key:'day',    label: 'Day'    },
+              { key:'week',   label: 'Week'   },
+              { key:'month',  label: 'Month'  },
+              { key:'year',   label: 'Year'   },
+              { key:'custom', label: 'Custom' },
             ].map(p => (
               <button key={p.key} onClick={() => setPeriod(p.key)} style={{
                 padding:'6px 14px', borderRadius:9, border:'none', cursor:'pointer', fontSize:12, fontWeight:500,
@@ -479,6 +495,29 @@ export default function Finance({ dark }) {
               }}>{p.label}</button>
             ))}
           </div>
+          {/* Custom date pickers — shown only when Custom is selected */}
+          {period === 'custom' && (
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginLeft:8 }}>
+              <input
+                type="date"
+                value={customFrom}
+                max={customTo}
+                onChange={e => setCustomFrom(e.target.value)}
+                className="abk-input"
+                style={{ width:140, padding:'5px 10px', fontSize:12, borderRadius:9 }}
+              />
+              <span style={{ fontSize:11, color:'var(--ink-faint)' }}>→</span>
+              <input
+                type="date"
+                value={customTo}
+                min={customFrom}
+                max={localYMD()}
+                onChange={e => setCustomTo(e.target.value)}
+                className="abk-input"
+                style={{ width:140, padding:'5px 10px', fontSize:12, borderRadius:9 }}
+              />
+            </div>
+          )}
           <span style={{ fontSize:11, color:'var(--ink-faint)', fontWeight:300 }}>· {range.label}</span>
         </div>
 
@@ -719,9 +758,23 @@ export default function Finance({ dark }) {
                 </table>
               </div>
               {/* Pagination */}
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', borderTop:'1px solid var(--border-light)', background:'var(--cream-deep)' }}>
-                <span style={{ fontSize:11, color:'var(--ink-faint)', fontWeight:300 }}>{allExpenses.length} {t('finance.allExpenseRecords').toLowerCase()}</span>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', borderTop:'1px solid var(--border-light)', background:'var(--cream-deep)', flexWrap:'wrap', gap:8 }}>
+                {/* Rows-per-page selector */}
+                <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                  <span style={{ fontSize:11, color:'var(--ink-faint)', fontWeight:300 }}>Rows:</span>
+                  {[10, 20, 50, 100].map(n => (
+                    <button key={n} onClick={() => { setRowsPerPage(n); setPage(1); }} style={{
+                      padding:'3px 9px', borderRadius:7, fontSize:11, fontWeight:500, cursor:'pointer',
+                      border:`1px solid ${rowsPerPage===n ? 'var(--blue)' : 'var(--border)'}`,
+                      background: rowsPerPage===n ? 'var(--blue)' : 'var(--card)',
+                      color: rowsPerPage===n ? '#fff' : 'var(--ink-faint)',
+                      transition:'all .15s',
+                    }}>{n}</button>
+                  ))}
+                </div>
                 <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:11, color:'var(--ink-faint)', fontWeight:300 }}>
+                  <span>Page {page} of {totalPages}</span>
+                  <span style={{ opacity:.5 }}>·</span>
                   <span>{filteredExp.length===0?0:(page-1)*rowsPerPage+1}–{Math.min(page*rowsPerPage,filteredExp.length)} of {filteredExp.length}</span>
                   {[
                     { Icon:ChevronLeft,  action:() => setPage(p => Math.max(1,p-1)),         disabled:page===1 },

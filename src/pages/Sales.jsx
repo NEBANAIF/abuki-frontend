@@ -625,7 +625,7 @@ export default function Sales({ dark }) {
           }}>
             <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--ink-faint)', fontWeight:300 }}>
               <span>Rows:</span>
-              {[10, 20, 50].map(n => (
+              {[10, 20, 50, 100].map(n => (
                 <button key={n} onClick={() => { setRowsPerPage(n); setPage(1); }} style={{
                   padding:'2px 9px', borderRadius:7, fontSize:11, fontWeight:500, cursor:'pointer',
                   background: rowsPerPage === n ? 'var(--green)' : 'var(--card)',

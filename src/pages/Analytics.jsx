@@ -104,24 +104,39 @@ const fmt    = n => (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2,
 const fmtInt = n => (n ?? 0).toLocaleString('en-US');
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
+// ── Date range resolver — maps preset IDs to from/to/granularity ─────────────
 function resolveRange(preset, customFrom, customTo) {
   const today = localYMD();
   switch (preset) {
-    case 'TODAY':     return { from: today, to: today, granularity: 'hour' };
-    case 'YESTERDAY': { const y = addDaysYMD(today, -1); return { from: y, to: y, granularity: 'hour' }; }
-    case 'LAST_7':    return { from: addDaysYMD(today, -6), to: today, granularity: 'day' };
-    case 'LAST_30':   return { from: addDaysYMD(today, -29), to: today, granularity: 'day' };
-    case 'MONTH':     return { from: startOfMonthYMD(), to: today, granularity: 'day' };
-    case 'QUARTER':   return { from: startOfQuarterYMD(), to: today, granularity: 'month' };
-    case 'YEAR':      return { from: startOfYearYMD(), to: today, granularity: 'month' };
+    // Day = today only
+    case 'DAY':
+      return { from: today, to: today, granularity: 'hour' };
+    // Week = last 7 days
+    case 'WEEK':
+      return { from: addDaysYMD(today, -6), to: today, granularity: 'day' };
+    // Month = start of current month to today
+    case 'MONTH':
+      return { from: startOfMonthYMD(), to: today, granularity: 'day' };
+    // Year = start of current year to today
+    case 'YEAR':
+      return { from: startOfYearYMD(), to: today, granularity: 'month' };
+    // Custom = user-selected date range
     case 'CUSTOM': {
       let from = customFrom || today;
       let to   = customTo   || today;
       if (from > to) { const s = from; from = to; to = s; }
-      const days = Math.max(0, Math.round((new Date(to + 'T00:00:00') - new Date(from + 'T00:00:00')) / 86400000)) + 1;
-      return { from, to, granularity: from === to ? 'hour' : days > 120 ? 'month' : 'day' };
+      const days = Math.max(0, Math.round(
+        (new Date(to + 'T00:00:00') - new Date(from + 'T00:00:00')) / 86400000
+      )) + 1;
+      return {
+        from,
+        to,
+        granularity: from === to ? 'hour' : days > 120 ? 'month' : 'day',
+      };
     }
-    default: return { from: addDaysYMD(today, -6), to: today, granularity: 'day' };
+    // Fallback
+    default:
+      return { from: addDaysYMD(today, -6), to: today, granularity: 'day' };
   }
 }
 
@@ -208,21 +223,19 @@ export default function Analytics({ dark: darkProp }) {
   const [products, setProducts]     = useState([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(false);
-  const [preset, setPreset]         = useState('LAST_7');
+  const [preset, setPreset]         = useState('WEEK');
   const [customFrom, setCustomFrom] = useState(localYMD());
   const [customTo, setCustomTo]     = useState(localYMD());
   const [summary, setSummary]       = useState(null);
   const [activeTab, setActiveTab]   = useState('top');
 
+  // ── Filter presets: Day · Week · Month · Year · Custom ──────────────────
   const PRESETS = useMemo(() => [
-    { id: 'TODAY',     label: t('analytics.today')     },
-    { id: 'YESTERDAY', label: t('analytics.yesterday') },
-    { id: 'LAST_7',    label: t('analytics.last7')     },
-    { id: 'LAST_30',   label: t('analytics.last30')    },
-    { id: 'MONTH',     label: t('analytics.thisMonth') },
-    { id: 'QUARTER',   label: t('analytics.quarter')   },
-    { id: 'YEAR',      label: t('analytics.year')      },
-    { id: 'CUSTOM',    label: t('analytics.custom')    },
+    { id: 'DAY',    label: t('analytics.today')     || 'Day'    },
+    { id: 'WEEK',   label: t('analytics.last7')     || 'Week'   },
+    { id: 'MONTH',  label: t('analytics.thisMonth') || 'Month'  },
+    { id: 'YEAR',   label: t('analytics.year')      || 'Year'   },
+    { id: 'CUSTOM', label: t('analytics.custom')    || 'Custom' },
   ], [t]);
 
   const range = useMemo(() => resolveRange(preset, customFrom, customTo), [preset, customFrom, customTo]);

@@ -174,7 +174,7 @@ export default function StockHistory({ dark: darkProp }) {
   const [typeFilter, setTypeFilter]       = useState('ALL');
   const [dateFilter, setDateFilter]       = useState('');
   const [page, setPage]                   = useState(1);
-  const [rowsPerPage, setRowsPerPage]     = useState(15);
+  const [rowsPerPage, setRowsPerPage]     = useState(10);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [successMsg, setSuccessMsg]       = useState('');
 
@@ -560,7 +560,7 @@ export default function StockHistory({ dark: darkProp }) {
             {/* Rows per page */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-light)' }}>
               <span style={{ fontWeight: 300 }}>{t('ui.rows')}:</span>
-              {[15, 25, 50].map(n => (
+              {[10, 20, 50, 100].map(n => (
                 <button key={n} onClick={() => { setRowsPerPage(n); setPage(1); }} style={{
                   padding: '3px 9px', borderRadius: 8, border: '1px solid var(--border)',
                   fontSize: 11.5, fontWeight: 600, cursor: 'pointer', transition: 'background .15s, color .15s',
