@@ -1,0 +1,63 @@
+/* ── Abuki ERP — Global Table Responsiveness Fix ──────────────────────────── */
+
+/* Smooth horizontal scroll on all table wrappers */
+[class*="-table-wrap"] {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  scroll-snap-type: x proximity;
+}
+
+/* Scrollbar styling */
+[class*="-table-wrap"]::-webkit-scrollbar { height: 4px; }
+[class*="-table-wrap"]::-webkit-scrollbar-track { background: transparent; }
+[class*="-table-wrap"]::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15); border-radius: 4px; }
+
+/* ── Tablet (≤ 1023px) ───────────────────────────────────────────────────── */
+@media (max-width: 1023px) {
+  [class*="-table-wrap"] table { min-width: 600px; }
+  [class*="-table-wrap"] th,
+  [class*="-table-wrap"] td { padding: 9px 10px !important; font-size: 12px !important; }
+}
+
+/* ── Phone (≤ 767px) ─────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  [class*="-table-wrap"] table { min-width: 480px; }
+  [class*="-table-wrap"] th { padding: 7px 8px !important; font-size: 9.5px !important; letter-spacing: 0.06em !important; }
+  [class*="-table-wrap"] td { padding: 8px 8px !important; font-size: 11px !important; }
+
+  /* Hide lower-priority columns on phones */
+  [class*="-table-wrap"] th:nth-child(3),
+  [class*="-table-wrap"] td:nth-child(3) { display: none; }
+
+  /* Tighter action buttons */
+  [class*="-table-wrap"] td:last-child { min-width: 80px; }
+  [class*="-table-wrap"] td:last-child button { padding: 3px 7px !important; font-size: 10px !important; }
+}
+
+/* ── Small phones (≤ 480px) ──────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  [class*="-table-wrap"] table { min-width: 380px; }
+  [class*="-table-wrap"] th { font-size: 8.5px !important; padding: 6px 6px !important; }
+  [class*="-table-wrap"] td { font-size: 10.5px !important; padding: 7px 6px !important; }
+
+  /* Hide more columns on very small phones — keep name, key value, status, actions */
+  [class*="-table-wrap"] th:nth-child(4),
+  [class*="-table-wrap"] td:nth-child(4),
+  [class*="-table-wrap"] th:nth-child(5),
+  [class*="-table-wrap"] td:nth-child(5) { display: none; }
+}
+
+/* ── Pagination responsiveness ───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  /* Stack pagination on mobile */
+  [class*="-page-bar"] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+}
+
+/* ── Prevent iOS zoom on input focus ─────────────────────────────────────── */
+@media (max-width: 767px) {
+  input, select, textarea { font-size: 16px !important; }
+}

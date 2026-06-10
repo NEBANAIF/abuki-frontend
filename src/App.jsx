@@ -9,6 +9,8 @@ import Analytics    from './pages/Analytics';
 import StockHistory from './pages/StockHistory';
 import UserAccess   from './pages/UserAccess';
 
+const BACKEND = import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://abuki-backend.onrender.com';
+
 export default function App() {
   const [user, setUser] = useState(() => {
     try {
@@ -28,6 +30,14 @@ export default function App() {
     document.documentElement.classList.toggle('dark', dark);
     try { localStorage.setItem('abuki_theme', dark ? 'dark' : 'light'); } catch {}
   }, [dark]);
+
+  // ── Keep-alive ping every 2 minutes to prevent Render cold starts ──────────
+  useEffect(() => {
+    const ping = () => fetch(`${BACKEND}/actuator/health`, { method: 'GET', mode: 'no-cors' }).catch(() => {});
+    ping(); // immediate ping on load
+    const id = setInterval(ping, 120_000); // every 2 minutes
+    return () => clearInterval(id);
+  }, []);
 
   function handleLogin(data) {
     const u = { id: data.id, name: data.name, email: data.email, role: data.role };
