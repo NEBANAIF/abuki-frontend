@@ -5,7 +5,7 @@ import {
   XCircle, Calendar, CheckCircle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getSales, recordSale, deleteSale, getProducts, getAnalyticsDashboard } from '../services/api';
+import { getSales, getSalesToday, recordSale, deleteSale, getProducts, getAnalyticsDashboard } from '../services/api';
 import { localYMD, normalizeSaleDate } from '../utils/dateUtils';
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -421,7 +421,12 @@ function ProductAutocomplete({ products, value, onChange, placeholder }) {
 /* ════════════════════════════════════════════════════════════════════════════
    Sales component
    ════════════════════════════════════════════════════════════════════════════ */
-export default function Sales({ dark }) {
+export default function Sales({ dark, user }) {
+  // ── Role flags ───────────────────────────────────────────────────────────
+  // WORKER: can only see today's sales, can record sales, CANNOT delete
+  // ADMIN:  full access — all sales, delete, analytics cards
+  const isAdmin  = user?.role?.toUpperCase() === 'ADMIN';
+  const isWorker = user?.role?.toUpperCase() === 'WORKER';
   const { t } = useTranslation();
 
   /* Inject CSS once */
@@ -459,13 +464,25 @@ export default function Sales({ dark }) {
     try {
       setLoading(true); setError(null);
       const today = localYMD();
-      const [s, p, agg, allAgg] = await Promise.all([
-        getSales(),
-        getProducts(),
-        getAnalyticsDashboard({ from:today, to:today, granularity:'day', includeSeries:false }).catch(() => null),
-        getAnalyticsDashboard({ from:'2000-01-01', to:today, granularity:'month', includeSeries:false }).catch(() => null),
-      ]);
-      setSales(s); setProducts(p); setPeriodSummary(agg); setAllTimeSummary(allAgg);
+
+      if (isWorker) {
+        // WORKER: only fetch today's sales + products (no analytics access)
+        const [s, p] = await Promise.all([
+          getSalesToday(),   // /api/sales/today — allowed for workers
+          getProducts(),
+        ]);
+        setSales(s); setProducts(p);
+        setPeriodSummary(null); setAllTimeSummary(null);
+      } else {
+        // ADMIN: fetch all sales + analytics
+        const [s, p, agg, allAgg] = await Promise.all([
+          getSales(),
+          getProducts(),
+          getAnalyticsDashboard({ from:today, to:today, granularity:'day', includeSeries:false }).catch(() => null),
+          getAnalyticsDashboard({ from:'2000-01-01', to:today, granularity:'month', includeSeries:false }).catch(() => null),
+        ]);
+        setSales(s); setProducts(p); setPeriodSummary(agg); setAllTimeSummary(allAgg);
+      }
     } catch { setError(t('sales.errorConnect')); }
     finally { setLoading(false); }
   }
@@ -500,7 +517,7 @@ export default function Sales({ dark }) {
     if (sel && parseInt(form.quantity) > sel.stock) { alert(`${t('sales.notEnoughStock')} ${sel.stock}`); return; }
     setSaving(true);
     try {
-      await recordSale({ product:{ id:parseInt(form.productId) }, quantity:parseInt(form.quantity), price:parseFloat(form.price), customerName:form.customerName || null, recordedBy:'Admin' });
+      await recordSale({ product:{ id:parseInt(form.productId) }, quantity:parseInt(form.quantity), price:parseFloat(form.price), customerName:form.customerName || null, recordedBy: user?.name || 'Staff' });
       setShowModal(false); showSuccess(t('sales.successRecord')); await loadAll();
     } catch (e) { alert(e.message || t('sales.errorRecord')); }
     finally { setSaving(false); }
@@ -576,6 +593,19 @@ export default function Sales({ dark }) {
             <div style={{ fontSize:12, color:'var(--ink-faint)', marginTop:4, fontWeight:300 }}>
               {t('sales.subtitle')}
             </div>
+            {/* WORKER mode notice — shown below page title */}
+            {isWorker && (
+              <div style={{
+                marginTop:10, display:'inline-flex', alignItems:'center', gap:7,
+                padding:'6px 12px', borderRadius:10,
+                background: dark ? 'rgba(251,191,36,.08)' : '#FFFBEB',
+                border: dark ? '1px solid rgba(251,191,36,.2)' : '1px solid #FDE68A',
+                fontSize:11, color: dark ? '#FBBf24' : '#92400E',
+              }}>
+                <span style={{ fontWeight:600 }}>👷 Worker mode</span>
+                <span style={{ fontWeight:300 }}>· Today's sales only · No delete access</span>
+              </div>
+            )}
           </div>
 
           <div style={{ display:'flex', gap:8, alignItems:'center', paddingTop:4 }}>
@@ -740,19 +770,24 @@ export default function Sales({ dark }) {
                         ${fmt(s.total)}
                       </span>
                     </td>
-                    {/* Actions */}
+                    {/* Actions — delete button only shown to ADMIN */}
                     <td className="abk-td-actions" style={{ padding:'11px 14px' }}>
-                      <button onClick={() => setDeleteConfirm(s)} style={{
-                        width:28, height:28, borderRadius:8, border:'1px solid var(--red-border)',
-                        background:'var(--red-bg)', color:'var(--red-text)',
-                        display:'inline-flex', alignItems:'center', justifyContent:'center',
-                        cursor:'pointer', transition:'background .15s, transform .1s',
-                      }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--red-border)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'var(--red-bg)'; e.currentTarget.style.transform = 'none'; }}
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                      {isAdmin ? (
+                        <button onClick={() => setDeleteConfirm(s)} style={{
+                          width:28, height:28, borderRadius:8, border:'1px solid var(--red-border)',
+                          background:'var(--red-bg)', color:'var(--red-text)',
+                          display:'inline-flex', alignItems:'center', justifyContent:'center',
+                          cursor:'pointer', transition:'background .15s, transform .1s',
+                        }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--red-border)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'var(--red-bg)'; e.currentTarget.style.transform = 'none'; }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      ) : (
+                        /* Worker sees a dash instead of delete button */
+                        <span style={{ fontSize:11, color:'var(--ink-faint)', paddingLeft:8 }}>—</span>
+                      )}
                     </td>
                   </tr>
                 ))}

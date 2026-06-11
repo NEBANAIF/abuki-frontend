@@ -1,3 +1,18 @@
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ *  App.jsx — Root component with role-based page access
+ *
+ *  ROLES:
+ *    ADMIN  → full access: dashboard, products, sales, finance, analytics,
+ *             stock history, user management
+ *    WORKER → restricted access: products (view only), sales (today only,
+ *             no delete, can record new sale)
+ *             All other pages redirect to "sales" automatically
+ *
+ *  The `user` object (from localStorage / login response) is passed to every
+ *  page and sidebar so they can adapt their UI accordingly.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
 import { useState, useEffect } from 'react';
 import Login        from './pages/Login';
 import Layout       from './components/Layout';
@@ -11,7 +26,14 @@ import UserAccess   from './pages/UserAccess';
 
 const BACKEND = import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://abuki-backend.onrender.com';
 
+/**
+ * Pages that a WORKER role is allowed to navigate to.
+ * Any other page key will be redirected to 'sales'.
+ */
+const WORKER_ALLOWED_PAGES = ['sales', 'products'];
+
 export default function App() {
+  // ── Restore user from localStorage on first render ───────────────────
   const [user, setUser] = useState(() => {
     try {
       const stored = localStorage.getItem('abuki_user');
@@ -20,32 +42,66 @@ export default function App() {
     } catch { return null; }
   });
 
+  // ── Default page depends on role ─────────────────────────────────────
   const [current, setCurrent] = useState('dashboard');
 
   const [dark, setDark] = useState(() => {
     try { return localStorage.getItem('abuki_theme') === 'dark'; } catch { return false; }
   });
 
+  // ── Apply dark class to <html> ────────────────────────────────────────
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
     try { localStorage.setItem('abuki_theme', dark ? 'dark' : 'light'); } catch {}
   }, [dark]);
 
-  // ── Keep-alive ping every 2 minutes to prevent Render cold starts ──────────
+  // ── Keep-alive ping every 2 minutes to prevent Render cold starts ─────
   useEffect(() => {
     const ping = () => fetch(`${BACKEND}/actuator/health`, { method: 'GET', mode: 'no-cors' }).catch(() => {});
-    ping(); // immediate ping on load
-    const id = setInterval(ping, 120_000); // every 2 minutes
+    ping();
+    const id = setInterval(ping, 120_000);
     return () => clearInterval(id);
   }, []);
 
+  // ── When user role changes, redirect workers to their allowed landing ──
+  useEffect(() => {
+    if (user) {
+      const isWorker = user.role?.toUpperCase() === 'WORKER';
+      if (isWorker) {
+        // Workers always start on and are redirected back to 'sales'
+        setCurrent('sales');
+      }
+    }
+  }, [user]);
+
+  /**
+   * Smart page setter — enforces WORKER restrictions.
+   * If a WORKER tries to navigate to a forbidden page, silently redirect
+   * them back to 'sales' instead.
+   */
+  function setCurrentGuarded(pageKey) {
+    if (user?.role?.toUpperCase() === 'WORKER') {
+      if (!WORKER_ALLOWED_PAGES.includes(pageKey)) {
+        setCurrent('sales'); // silently redirect
+        return;
+      }
+    }
+    setCurrent(pageKey);
+  }
+
+  // ── Login handler ─────────────────────────────────────────────────────
   function handleLogin(data) {
     const u = { id: data.id, name: data.name, email: data.email, role: data.role };
     setUser(u);
     localStorage.setItem('abuki_user', JSON.stringify(u));
     localStorage.setItem('abuki_token', data.token);
+
+    // Redirect workers to sales immediately after login
+    const isWorker = data.role?.toUpperCase() === 'WORKER';
+    setCurrent(isWorker ? 'sales' : 'dashboard');
   }
 
+  // ── Logout handler ────────────────────────────────────────────────────
   function handleLogout() {
     localStorage.removeItem('abuki_token');
     localStorage.removeItem('abuki_user');
@@ -54,28 +110,45 @@ export default function App() {
     window.location.href = '/';
   }
 
+  // ── Not logged in → show Login page ──────────────────────────────────
   if (!user) return <Login onLogin={handleLogin} />;
 
+  const isWorker = user.role?.toUpperCase() === 'WORKER';
+  const isAdmin  = user.role?.toUpperCase() === 'ADMIN';
+
+  /**
+   * Page map — pass user down to every page.
+   * Pages use `user` prop to show/hide buttons and apply restrictions.
+   *
+   * Workers only see 'products' and 'sales'.
+   * Admin sees everything.
+   */
   const pages = {
-    dashboard: <Dashboard dark={dark} />,
-    products:  <Products  dark={dark} />,
-    sales:     <Sales     dark={dark} />,
-    finance:   <Finance   dark={dark} />,
-    analytics: <Analytics dark={dark} />,
-    stock:     <StockHistory dark={dark} />,
-    users:     <UserAccess dark={dark} />,
+    // ── Both roles ──────────────────────────────────────────────────────
+    products: <Products  dark={dark} user={user} />,
+    sales:    <Sales     dark={dark} user={user} />,
+
+    // ── Admin only ──────────────────────────────────────────────────────
+    ...(isAdmin && {
+      dashboard: <Dashboard    dark={dark} user={user} />,
+      finance:   <Finance      dark={dark} user={user} />,
+      analytics: <Analytics    dark={dark} user={user} />,
+      stock:     <StockHistory dark={dark} user={user} />,
+      users:     <UserAccess   dark={dark} user={user} />,
+    }),
   };
 
   return (
     <Layout
       current={current}
-      setCurrent={setCurrent}
+      setCurrent={setCurrentGuarded}   // ← guarded version prevents WORKER from accessing admin pages
       user={user}
       onLogout={handleLogout}
       dark={dark}
       onDarkToggle={() => setDark(d => !d)}
     >
-      {pages[current] || <Dashboard dark={dark} />}
+      {/* Render page — fallback to Sales for workers, Dashboard for admins */}
+      {pages[current] || (isWorker ? <Sales dark={dark} user={user} /> : <Dashboard dark={dark} user={user} />)}
     </Layout>
   );
 }

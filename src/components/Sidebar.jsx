@@ -1,18 +1,37 @@
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ *  Sidebar.jsx — Role-aware navigation sidebar
+ *
+ *  ADMIN:  sees all nav items (Dashboard, Products, Sales, Finance,
+ *          Analytics, Stock History, User Access)
+ *  WORKER: sees only Products and Sales
+ *          Other items are completely hidden from the sidebar (not just disabled)
+ *
+ *  Role badge is color coded:
+ *    ADMIN  → green
+ *    WORKER → blue/amber
+ * ─────────────────────────────────────────────────────────────────────────
+ */
 import { useEffect } from 'react';
 import {
   LayoutDashboard, Package, ShoppingCart, DollarSign,
   TrendingUp, Clock, Users, LogOut, ChevronRight, Moon, Sun, Languages,
+  Shield, Briefcase,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+/**
+ * Full navigation list — each item has an optional `adminOnly` flag.
+ * If `adminOnly: true`, the item is hidden from WORKER-role users.
+ */
 const NAV = [
-  { key: 'dashboard', i18n: 'nav.dashboard', icon: LayoutDashboard },
-  { key: 'products',  i18n: 'nav.products',  icon: Package },
-  { key: 'sales',     i18n: 'nav.sales',     icon: ShoppingCart },
-  { key: 'finance',   i18n: 'nav.finance',   icon: DollarSign },
-  { key: 'analytics', i18n: 'nav.analytics', icon: TrendingUp },
-  { key: 'stock',     i18n: 'nav.stock',     icon: Clock },
-  { key: 'users',     i18n: 'nav.users',     icon: Users },
+  { key: 'dashboard', i18n: 'nav.dashboard', icon: LayoutDashboard, adminOnly: true  },
+  { key: 'products',  i18n: 'nav.products',  icon: Package,          adminOnly: false },
+  { key: 'sales',     i18n: 'nav.sales',     icon: ShoppingCart,     adminOnly: false },
+  { key: 'finance',   i18n: 'nav.finance',   icon: DollarSign,       adminOnly: true  },
+  { key: 'analytics', i18n: 'nav.analytics', icon: TrendingUp,       adminOnly: true  },
+  { key: 'stock',     i18n: 'nav.stock',     icon: Clock,            adminOnly: true  },
+  { key: 'users',     i18n: 'nav.users',     icon: Users,            adminOnly: true  },
 ];
 
 export default function Sidebar({ current, setCurrent, user, onLogout, dark, onDarkToggle, open }) {
@@ -25,7 +44,17 @@ export default function Sidebar({ current, setCurrent, user, onLogout, dark, onD
   }
 
   const roleKey  = user?.role?.toUpperCase() || 'VIEWER';
+  const isWorker = roleKey === 'WORKER';
+  const isAdmin  = roleKey === 'ADMIN';
   const headerBg = dark ? '#090D14' : '#0F1F04';
+
+  // Filter the nav items based on user role
+  // WORKER only sees items where adminOnly = false
+  const visibleNav = NAV.filter(item => {
+    if (isAdmin)  return true;          // admin sees everything
+    if (isWorker) return !item.adminOnly; // worker only sees non-admin items
+    return false;                        // unknown role sees nothing
+  });
 
   return (
     <aside className={`abk-sidebar${dark ? ' abk-dark' : ''}${open ? ' open' : ''}`}>
@@ -84,22 +113,46 @@ export default function Sidebar({ current, setCurrent, user, onLogout, dark, onD
           </button>
         </div>
 
-        {/* Live status */}
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          fontSize: 10.5, fontWeight: 500, padding: '4px 10px', borderRadius: 20,
-          background: dark ? 'rgba(61,214,140,.08)' : 'rgba(255,255,255,.07)',
-          color: dark ? '#3DD68C' : '#A8C080',
-          border: dark ? '1px solid rgba(61,214,140,.2)' : '1px solid rgba(255,255,255,.1)',
-        }}>
-          <span className="abk-pulse" style={{
-            width: 6, height: 6, borderRadius: '50%',
-            background: dark ? '#3DD68C' : '#2EC68F',
-            display: 'inline-block',
-          }} />
-          <span style={{ fontSize: 10, letterSpacing: '0.06em' }}>
-            {t('dashboard.live')}
-          </span>
+        {/* Live status + role indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {/* Live dot */}
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            fontSize: 10.5, fontWeight: 500, padding: '4px 10px', borderRadius: 20,
+            background: dark ? 'rgba(61,214,140,.08)' : 'rgba(255,255,255,.07)',
+            color: dark ? '#3DD68C' : '#A8C080',
+            border: dark ? '1px solid rgba(61,214,140,.2)' : '1px solid rgba(255,255,255,.1)',
+          }}>
+            <span className="abk-pulse" style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: dark ? '#3DD68C' : '#2EC68F',
+              display: 'inline-block',
+            }} />
+            <span style={{ fontSize: 10, letterSpacing: '0.06em' }}>
+              {t('dashboard.live')}
+            </span>
+          </div>
+
+          {/* Role badge — shown prominently in header */}
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            fontSize: 9.5, fontWeight: 700, padding: '4px 8px', borderRadius: 20,
+            letterSpacing: '0.08em',
+            // Green for ADMIN, amber for WORKER
+            background: isAdmin
+              ? (dark ? 'rgba(61,214,140,.12)' : 'rgba(255,255,255,.08)')
+              : (dark ? 'rgba(251,191,36,.12)'  : 'rgba(255,255,255,.07)'),
+            color: isAdmin
+              ? (dark ? '#3DD68C' : '#A8C080')
+              : (dark ? '#FBBf24' : '#D4A820'),
+            border: isAdmin
+              ? (dark ? '1px solid rgba(61,214,140,.25)' : '1px solid rgba(255,255,255,.15)')
+              : (dark ? '1px solid rgba(251,191,36,.25)'  : '1px solid rgba(255,255,255,.1)'),
+          }}>
+            {/* Shield icon for admin, briefcase for worker */}
+            {isAdmin ? <Shield size={9} /> : <Briefcase size={9} />}
+            {roleKey}
+          </div>
         </div>
       </div>
 
@@ -117,7 +170,8 @@ export default function Sidebar({ current, setCurrent, user, onLogout, dark, onD
           {i18n.language === 'am' ? 'ዋና ምናሌ' : 'Main Menu'}
         </div>
 
-        {NAV.map(({ key, i18n: ns, icon: Icon }, idx) => {
+        {/* Only render nav items allowed for this role */}
+        {visibleNav.map(({ key, i18n: ns, icon: Icon }, idx) => {
           const active = current === key;
           return (
             <button
@@ -141,6 +195,29 @@ export default function Sidebar({ current, setCurrent, user, onLogout, dark, onD
             </button>
           );
         })}
+
+        {/* Worker info note — tells them what they have access to */}
+        {isWorker && (
+          <div style={{
+            marginTop: 10, padding: '10px 12px', borderRadius: 10,
+            background: dark ? 'rgba(251,191,36,.06)' : 'rgba(0,0,0,.04)',
+            border: dark ? '1px solid rgba(251,191,36,.15)' : '1px solid rgba(0,0,0,.07)',
+          }}>
+            <div style={{
+              fontSize: 9.5, fontWeight: 600, letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: dark ? '#FBBf24' : '#A07A10',
+              marginBottom: 4,
+            }}>
+              Worker Access
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--abk-ink-faint)', lineHeight: 1.5 }}>
+              • View products (read only)<br />
+              • View &amp; record today's sales<br />
+              • Cannot delete sales
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* ── Footer ── */}
@@ -186,11 +263,21 @@ export default function Sidebar({ current, setCurrent, user, onLogout, dark, onD
               fontSize: 10, color: 'var(--abk-ink-faint)', fontWeight: 300,
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>{user?.email}</div>
-            <span className={`abk-role-${roleKey}`} style={{
+            {/* Role badge — color coded */}
+            <span style={{
               display: 'inline-block', fontSize: 9.5, fontWeight: 600,
               letterSpacing: '0.06em', padding: '1px 7px', borderRadius: 20,
               textTransform: 'uppercase', marginTop: 2,
-            }}>{user?.role}</span>
+              // Green for ADMIN, amber for WORKER
+              background: isAdmin
+                ? (dark ? 'rgba(61,214,140,.15)' : '#D4EDDA')
+                : (dark ? 'rgba(251,191,36,.15)'  : '#FFF3CD'),
+              color: isAdmin
+                ? (dark ? '#3DD68C' : '#155724')
+                : (dark ? '#FBBf24' : '#856404'),
+            }}>
+              {user?.role}
+            </span>
           </div>
         </div>
 
