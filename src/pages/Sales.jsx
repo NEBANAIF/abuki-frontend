@@ -135,19 +135,50 @@ const SALES_CSS = `
     .abk-sales-kpi-3  { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
     .abk-sales-filter { flex-direction: column !important; }
     .abk-sales-filter > * { width: 100% !important; }
-    .abk-sales-table-wrap {
-      overflow-x: auto !important;
-      -webkit-overflow-scrolling: touch !important;
-      /* Smooth momentum scrolling on iOS */
-      scroll-behavior: smooth;
-    }
-    /* Compact cells so table is narrower and scrolls less */
-    .abk-sales-table-wrap table { min-width: 560px; }
-    .abk-sales-table-wrap th { padding: 8px 8px !important; font-size: 9px !important; }
-    .abk-sales-table-wrap td { padding: 8px 8px !important; font-size: 11.5px !important; }
     .abk-sales-header { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
     .abk-sales-header > * { width: 100% !important; }
     .abk-sales-modal-grid { grid-template-columns: 1fr !important; }
+
+    /* ── Stacked card table ── */
+    .abk-sales-table-wrap { overflow-x: visible !important; }
+    .abk-sales-table-wrap table { display: block !important; }
+    .abk-sales-table-wrap thead { display: none !important; }
+    .abk-sales-table-wrap tbody { display: flex !important; flex-direction: column !important; gap: 8px !important; padding: 8px !important; }
+    .abk-sales-table-wrap tr {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      background: var(--card) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 12px !important;
+      overflow: hidden !important;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06) !important;
+    }
+    .abk-sales-table-wrap td {
+      display: flex !important;
+      flex-direction: column !important;
+      padding: 8px 10px !important;
+      border-bottom: 1px solid var(--border-light) !important;
+      font-size: 12px !important;
+    }
+    .abk-sales-table-wrap td::before {
+      content: attr(data-label) !important;
+      font-size: 9px !important;
+      font-weight: 600 !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.08em !important;
+      color: var(--ink-faint) !important;
+      margin-bottom: 3px !important;
+    }
+    .abk-sales-table-wrap td.abk-td-actions {
+      grid-column: 1 / -1 !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      justify-content: flex-end !important;
+      border-bottom: none !important;
+    }
+    .abk-sales-table-wrap td.abk-td-actions::before { display: none !important; }
+    .abk-sales-table-wrap td[colspan] { grid-column: 1 / -1 !important; border-bottom: none !important; }
+    .abk-sales-table-wrap td[colspan]::before { display: none !important; }
   }
 
   @media (max-width:480px) {
@@ -311,53 +342,91 @@ function ProductAutocomplete({ products, value, onChange, placeholder }) {
   const [query,  setQuery]  = useState('');
   const [open,   setOpen]   = useState(false);
   const [active, setActive] = useState(-1);
-  const ref = useRef(null);
+  const inputRef = useRef(null);
+  const ref      = useRef(null);
 
+  // When a product is selected externally (or cleared), sync the display text
   useEffect(() => {
     const p = products.find(p => String(p.id) === String(value));
-    setQuery(p ? `${p.name} — $${p.price}` : '');
+    setQuery(p ? p.name : '');
   }, [value, products]);
 
+  // Close on outside click
   useEffect(() => {
-    function handler(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    function handler(e) {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        // If nothing selected, clear query
+        if (!value) setQuery('');
+        else {
+          const p = products.find(p => String(p.id) === String(value));
+          setQuery(p ? p.name : '');
+        }
+      }
+    }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [value, products]);
 
-  const filtered = products.filter(p =>
-    !query || p.name.toLowerCase().includes(query.toLowerCase()) || p.sku?.toLowerCase().includes(query.toLowerCase())
-  );
+  const filtered = products.filter(p => {
+    if (!query) return true;
+    return p.name.toLowerCase().includes(query.toLowerCase()) ||
+           (p.sku || '').toLowerCase().includes(query.toLowerCase());
+  });
 
-  function select(p) { onChange(p.id); setQuery(`${p.name} — $${p.price}`); setOpen(false); setActive(-1); }
+  function select(p) {
+    onChange(p.id);
+    setQuery(p.name);
+    setOpen(false);
+    setActive(-1);
+  }
+
+  function handleChange(e) {
+    setQuery(e.target.value);
+    setOpen(true);
+    setActive(-1);
+    // Only clear parent value if user is typing (not already matching)
+    if (value) {
+      const current = products.find(p => String(p.id) === String(value));
+      if (!current || current.name !== e.target.value) onChange('');
+    }
+  }
+
+  function handleFocus() {
+    setOpen(true);
+    setActive(-1);
+    // Select all text so user can immediately type a new search
+    setTimeout(() => inputRef.current?.select(), 0);
+  }
 
   function handleKey(e) {
     if (!open) { setOpen(true); return; }
-    if (e.key === 'ArrowDown')  { e.preventDefault(); setActive(a => Math.min(a+1, filtered.length-1)); }
-    if (e.key === 'ArrowUp')    { e.preventDefault(); setActive(a => Math.max(a-1, 0)); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive(a => Math.min(a + 1, filtered.length - 1)); }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); setActive(a => Math.max(a - 1, 0)); }
     if (e.key === 'Enter' && active >= 0) { e.preventDefault(); select(filtered[active]); }
-    if (e.key === 'Escape')     { setOpen(false); }
+    if (e.key === 'Escape') { setOpen(false); }
   }
 
   return (
     <div className="abk-sales-ac" ref={ref}>
-      <div style={{ position:'relative' }}>
-        <Search size={13} style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', color:'var(--ink-faint)', pointerEvents:'none' }} />
+      <div style={{ position: 'relative' }}>
+        <Search size={13} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-faint)', pointerEvents: 'none' }} />
         <input
-          value={open && !value ? query : (value ? query : '')}
-          onChange={e => { setQuery(e.target.value); setOpen(true); onChange(''); setActive(-1); }}
-          onFocus={() => { setOpen(true); if (value) setQuery(''); }}
-          onBlur={() => { setTimeout(() => {
-            const p = products.find(p => String(p.id) === String(value));
-            if (!value) setQuery(''); else setQuery(`${p?.name} — $${p?.price}`);
-          }, 150); }}
+          ref={inputRef}
+          value={query}
+          onChange={handleChange}
+          onFocus={handleFocus}
           onKeyDown={handleKey}
           placeholder={placeholder || 'Search product…'}
           className="abk-input"
-          style={{ paddingLeft:32 }}
+          style={{ paddingLeft: 32, paddingRight: query ? 32 : 12 }}
           autoComplete="off"
         />
-        {(query || value) && (
-          <button onMouseDown={() => { setQuery(''); onChange(''); setOpen(false); }} style={{ position:'absolute', right:9, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'var(--ink-faint)', display:'flex', padding:2 }}>
+        {query && (
+          <button
+            onMouseDown={e => { e.preventDefault(); onChange(''); setQuery(''); setOpen(false); }}
+            style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-faint)', display: 'flex', padding: 2 }}
+          >
             <X size={13} />
           </button>
         )}
@@ -365,14 +434,18 @@ function ProductAutocomplete({ products, value, onChange, placeholder }) {
       {open && (
         <div className="abk-sales-ac-list">
           {filtered.length === 0 ? (
-            <div style={{ padding:'12px', fontSize:12, color:'var(--ink-faint)', textAlign:'center' }}>No products available</div>
+            <div style={{ padding: '12px', fontSize: 12, color: 'var(--ink-faint)', textAlign: 'center' }}>No products found</div>
           ) : filtered.map((p, i) => (
-            <div key={p.id} className={`abk-sales-ac-item${i === active ? ' ac-active' : ''}`} onMouseDown={() => select(p)}>
+            <div
+              key={p.id}
+              className={`abk-sales-ac-item${i === active ? ' ac-active' : ''}`}
+              onMouseDown={e => { e.preventDefault(); select(p); }}
+            >
               <div>
-                <div style={{ fontWeight:500, fontSize:13 }}>{p.name}</div>
-                <div style={{ fontSize:11, color:'var(--ink-faint)', fontFamily:'monospace' }}>SKU: {p.sku} · Stock: {p.stock}</div>
+                <div style={{ fontWeight: 500, fontSize: 13 }}>{p.name}</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-faint)', fontFamily: 'monospace' }}>SKU: {p.sku} · Stock: {p.stock}</div>
               </div>
-              <div style={{ fontSize:13, fontWeight:600, color:'var(--green)' }}>${p.price}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)', flexShrink: 0, marginLeft: 8 }}>${p.price}</div>
             </div>
           ))}
         </div>
@@ -662,21 +735,21 @@ export default function Sales({ dark }) {
                 ) : paginated.map(s => (
                   <tr key={s.id} className="abk-row-hover" style={{ borderBottom:'1px solid var(--border-light)', background:'var(--card)' }}>
                     {/* Date / time */}
-                    <td style={{ padding:'11px 14px' }}>
+                    <td data-label="Date & Time" style={{ padding:'11px 14px' }}>
                       <div style={{ fontSize:13, fontWeight:500, color:'var(--ink)' }}>{fmtDate(s.saleDate)}</div>
                       {s.saleTime && <div style={{ fontSize:10.5, color:'var(--ink-faint)', marginTop:2, fontWeight:300 }}>{fmtTime(s.saleTime)}</div>}
                     </td>
                     {/* Product */}
-                    <td style={{ padding:'11px 14px' }}>
+                    <td data-label="Product" style={{ padding:'11px 14px' }}>
                       <div style={{ fontSize:13, fontWeight:500, color:'var(--ink)' }}>{s.product?.name || '—'}</div>
                       {s.product?.sku && <div style={{ fontSize:10.5, color:'var(--ink-faint)', fontFamily:'monospace', marginTop:2 }}>SKU: {s.product.sku}</div>}
                     </td>
                     {/* Customer */}
-                    <td style={{ padding:'11px 14px', fontSize:12, color:'var(--ink-light)', fontWeight:300 }}>
+                    <td data-label="Customer" style={{ padding:'11px 14px', fontSize:12, color:'var(--ink-light)', fontWeight:300 }}>
                       {s.customerName || <span style={{ color:'var(--border)' }}>—</span>}
                     </td>
                     {/* Qty */}
-                    <td style={{ padding:'11px 14px' }}>
+                    <td data-label="Qty" style={{ padding:'11px 14px' }}>
                       <span style={{
                         display:'inline-block', fontSize:12, fontWeight:600, color:'var(--blue)',
                         background:'var(--blue-bg)', border:'1px solid rgba(24,95,165,.18)',
@@ -684,17 +757,17 @@ export default function Sales({ dark }) {
                       }}>{s.quantity}</span>
                     </td>
                     {/* Unit price */}
-                    <td style={{ padding:'11px 14px', fontSize:12, color:'var(--ink-faint)', fontWeight:300 }}>
+                    <td data-label="Unit Price" style={{ padding:'11px 14px', fontSize:12, color:'var(--ink-faint)', fontWeight:300 }}>
                       ${fmt(s.price)}
                     </td>
                     {/* Total */}
-                    <td style={{ padding:'11px 14px' }}>
+                    <td data-label="Total" style={{ padding:'11px 14px' }}>
                       <span className="abk-serif" style={{ fontSize:14, fontWeight:600, color:'var(--green)' }}>
                         ${fmt(s.total)}
                       </span>
                     </td>
                     {/* Actions */}
-                    <td style={{ padding:'11px 14px' }}>
+                    <td className="abk-td-actions" style={{ padding:'11px 14px' }}>
                       <button onClick={() => setDeleteConfirm(s)} style={{
                         width:28, height:28, borderRadius:8, border:'1px solid var(--red-border)',
                         background:'var(--red-bg)', color:'var(--red-text)',

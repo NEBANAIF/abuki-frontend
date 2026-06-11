@@ -145,20 +145,61 @@ const PRODUCTS_CSS = `
     .abk-prod-kpi-4   { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
     .abk-prod-filter  { flex-direction: column !important; }
     .abk-prod-filter > * { width: 100% !important; }
-    .abk-prod-table-wrap {
-      overflow-x: auto !important;
-      -webkit-overflow-scrolling: touch !important;
-      scroll-behavior: smooth;
-    }
-    .abk-prod-table-wrap table { min-width: 480px; }
-    .abk-prod-table-wrap th { padding: 8px 8px !important; font-size: 9px !important; }
-    .abk-prod-table-wrap td { padding: 8px 8px !important; font-size: 11.5px !important; }
-    /* Hide less critical columns on mobile */
-    .abk-prod-col-sku,
-    .abk-prod-col-cost { display: none !important; }
     .abk-prod-header  { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
     .abk-prod-header > * { width: 100% !important; }
     .abk-prod-modal-grid { grid-template-columns: 1fr !important; }
+
+    /* ── Stacked card table — shows ALL columns, no hiding, no horizontal scroll ── */
+    .abk-prod-table-wrap { overflow-x: visible !important; }
+    .abk-prod-table-wrap table { display: block !important; }
+    .abk-prod-table-wrap thead { display: none !important; }
+    .abk-prod-table-wrap tbody { display: flex !important; flex-direction: column !important; gap: 8px !important; padding: 8px !important; }
+    .abk-prod-table-wrap tr {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 0 !important;
+      background: var(--card) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 12px !important;
+      overflow: hidden !important;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06) !important;
+    }
+    .abk-prod-table-wrap td {
+      display: flex !important;
+      flex-direction: column !important;
+      padding: 8px 10px !important;
+      border-bottom: 1px solid var(--border-light) !important;
+      font-size: 12px !important;
+    }
+    .abk-prod-table-wrap td::before {
+      content: attr(data-label) !important;
+      font-size: 9px !important;
+      font-weight: 600 !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.08em !important;
+      color: var(--ink-faint) !important;
+      margin-bottom: 3px !important;
+    }
+    /* Actions cell spans full width */
+    .abk-prod-table-wrap td.abk-td-actions {
+      grid-column: 1 / -1 !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      justify-content: flex-end !important;
+      gap: 8px !important;
+      border-bottom: none !important;
+      padding: 8px 10px !important;
+    }
+    .abk-prod-table-wrap td.abk-td-actions::before { display: none !important; }
+    /* Empty state spans full width */
+    .abk-prod-table-wrap td[colspan] {
+      grid-column: 1 / -1 !important;
+      border-bottom: none !important;
+    }
+    .abk-prod-table-wrap td[colspan]::before { display: none !important; }
+    /* Remove hidden classes - show all columns */
+    .abk-prod-col-sku,
+    .abk-prod-col-cost { display: flex !important; }
   }
 
   /* Autocomplete dropdown */
@@ -668,30 +709,30 @@ export default function Products({ dark }) {
                   return (
                     <tr key={p.id} className="abk-row-hover" style={{ borderBottom:'1px solid var(--border-light)', background:'var(--card)', transition:'background .15s' }}>
                       {/* Product name */}
-                      <td style={{ padding:'11px 14px' }}>
+                      <td data-label="Product" style={{ padding:'11px 14px' }}>
                         <div style={{ fontSize:13, fontWeight:500, color:'var(--ink)' }}>{p.name}</div>
                         {p.description && <div style={{ fontSize:11, color:'var(--ink-faint)', marginTop:2, maxWidth:150, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontWeight:300 }}>{p.description}</div>}
                       </td>
                       {/* SKU */}
-                      <td className="abk-prod-col-sku" style={{ padding:'11px 14px', fontFamily:'monospace', fontSize:12, color:'var(--ink-light)' }}>{p.sku}</td>
+                      <td className="abk-prod-col-sku" data-label="SKU" style={{ padding:'11px 14px', fontFamily:'monospace', fontSize:12, color:'var(--ink-light)' }}>{p.sku}</td>
                       {/* Category */}
-                      <td style={{ padding:'11px 14px' }}>
+                      <td data-label="Category" style={{ padding:'11px 14px' }}>
                         {p.category
                           ? <Pill bg="var(--blue-bg)" color="var(--blue)" border="rgba(24,95,165,.2)">{p.category}</Pill>
                           : <span style={{ color:'var(--border)' }}>—</span>}
                       </td>
                       {/* Selling price */}
-                      <td style={{ padding:'11px 14px' }}>
+                      <td data-label="Price" style={{ padding:'11px 14px' }}>
                         <span className="abk-serif" style={{ fontSize:14, fontWeight:500, color:'var(--ink)' }}>
                           ${(p.price ?? 0).toLocaleString(undefined, { minimumFractionDigits:2, maximumFractionDigits:2 })}
                         </span>
                       </td>
                       {/* Cost price */}
-                      <td className="abk-prod-col-cost" style={{ padding:'11px 14px', fontSize:12, color:'var(--ink-faint)', fontWeight:300 }}>
+                      <td className="abk-prod-col-cost" data-label="Cost" style={{ padding:'11px 14px', fontSize:12, color:'var(--ink-faint)', fontWeight:300 }}>
                         ${(p.cost ?? 0).toLocaleString(undefined, { minimumFractionDigits:2, maximumFractionDigits:2 })}
                       </td>
                       {/* Stock */}
-                      <td style={{ padding:'11px 14px' }}>
+                      <td data-label="Stock" style={{ padding:'11px 14px' }}>
                         <span style={{
                           fontSize:14, fontWeight:700,
                           color: p.stock === 0 ? 'var(--red-text)' : p.stock <= (p.minStock || 30) ? 'var(--amber)' : 'var(--ink)',
@@ -699,11 +740,11 @@ export default function Products({ dark }) {
                         {p.minStock && <div style={{ fontSize:10, color:'var(--ink-faint)', marginTop:2, fontWeight:300 }}>{t('products.min')}: {p.minStock}</div>}
                       </td>
                       {/* Status */}
-                      <td style={{ padding:'11px 14px' }}>
+                      <td data-label="Status" style={{ padding:'11px 14px' }}>
                         <Pill bg={sc.bg} color={sc.color} border={sc.border}>{sc.label}</Pill>
                       </td>
                       {/* Actions */}
-                      <td style={{ padding:'11px 14px' }}>
+                      <td className="abk-td-actions" style={{ padding:'11px 14px' }}>
                         <div style={{ display:'flex', gap:6, alignItems:'center' }}>
                           <button onClick={() => openEdit(p)} className="abk-btn-icon" style={{ width:28, height:28, background:'var(--blue-bg)', color:'var(--blue)', border:'1px solid rgba(24,95,165,.2)' }} title="Edit">
                             <Edit2 size={12} />

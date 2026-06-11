@@ -70,15 +70,48 @@ const GLOBAL_CSS = `
     .abk-stk-kpi-4  { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
     .abk-stk-filter { flex-direction: column !important; }
     .abk-stk-filter > * { width: 100% !important; }
-    .abk-stk-table-wrap {
-      overflow-x: auto !important;
-      -webkit-overflow-scrolling: touch !important;
-      scroll-behavior: smooth;
-    }
-    .abk-stk-table-wrap table { min-width: 520px; }
-    .abk-stk-table-wrap th { padding: 8px 8px !important; font-size: 9px !important; }
-    .abk-stk-table-wrap td { padding: 8px 8px !important; font-size: 11.5px !important; }
     .abk-stk-header { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+
+    /* ── Stacked card table ── */
+    .abk-stk-table-wrap { overflow-x: visible !important; }
+    .abk-stk-table-wrap table { display: block !important; }
+    .abk-stk-table-wrap thead { display: none !important; }
+    .abk-stk-table-wrap tbody { display: flex !important; flex-direction: column !important; gap: 8px !important; padding: 8px !important; }
+    .abk-stk-table-wrap tr {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      background: var(--card) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 12px !important;
+      overflow: hidden !important;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06) !important;
+    }
+    .abk-stk-table-wrap td {
+      display: flex !important;
+      flex-direction: column !important;
+      padding: 8px 10px !important;
+      border-bottom: 1px solid var(--border-light) !important;
+      font-size: 12px !important;
+    }
+    .abk-stk-table-wrap td::before {
+      content: attr(data-label) !important;
+      font-size: 9px !important;
+      font-weight: 600 !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.08em !important;
+      color: var(--ink-faint) !important;
+      margin-bottom: 3px !important;
+    }
+    .abk-stk-table-wrap td.abk-td-actions {
+      grid-column: 1 / -1 !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      justify-content: flex-end !important;
+      border-bottom: none !important;
+    }
+    .abk-stk-table-wrap td.abk-td-actions::before { display: none !important; }
+    .abk-stk-table-wrap td[colspan] { grid-column: 1 / -1 !important; border-bottom: none !important; }
+    .abk-stk-table-wrap td[colspan]::before { display: none !important; }
   }
 
   @media (max-width:480px) {
@@ -440,7 +473,7 @@ export default function StockHistory({ dark: darkProp }) {
                     }}>
 
                       {/* Date & Time */}
-                      <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
+                      <td data-label="Date & Time" style={{ padding: '10px 14px' }}>
                         <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--ink)' }}>{date}</div>
                         {time && (
                           <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 3, fontWeight: 300 }}>
@@ -450,7 +483,7 @@ export default function StockHistory({ dark: darkProp }) {
                       </td>
 
                       {/* Product */}
-                      <td style={{ padding: '10px 14px' }}>
+                      <td data-label="Product" style={{ padding: '10px 14px' }}>
                         <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)' }}>{h.product?.name || '—'}</div>
                         {h.product?.sku && (
                           <div style={{ fontSize: 10.5, color: 'var(--ink-faint)', fontFamily: 'monospace', marginTop: 1 }}>SKU: {h.product.sku}</div>
@@ -458,7 +491,7 @@ export default function StockHistory({ dark: darkProp }) {
                       </td>
 
                       {/* Type badge */}
-                      <td style={{ padding: '10px 14px' }}>
+                      <td data-label="Type" style={{ padding: '10px 14px' }}>
                         <div style={{
                           display: 'inline-flex', alignItems: 'center', gap: 5,
                           padding: '3px 10px', borderRadius: 20,
@@ -472,7 +505,7 @@ export default function StockHistory({ dark: darkProp }) {
                       </td>
 
                       {/* Change */}
-                      <td style={{ padding: '10px 14px' }}>
+                      <td data-label="Change" style={{ padding: '10px 14px' }}>
                         <div style={{
                           display: 'flex', alignItems: 'center', gap: 4,
                           fontSize: 13, fontWeight: 700,
@@ -485,18 +518,17 @@ export default function StockHistory({ dark: darkProp }) {
                       </td>
 
                       {/* Before */}
-                      <td style={{ padding: '10px 14px' }}>
+                      <td data-label="Before" style={{ padding: '10px 14px' }}>
                         <span style={{
                           display: 'inline-block',
                           fontSize: 12.5, fontWeight: 600, color: 'var(--ink)',
                           background: 'var(--cream-deep)', border: '1px solid var(--border)',
                           padding: '2px 10px', borderRadius: 8,
                         }}>{h.previousStock ?? '—'}</span>
-                        <div style={{ fontSize: 10, color: 'var(--ink-faint)', marginTop: 2, fontWeight: 300 }}>{t('stock.before')}</div>
                       </td>
 
                       {/* After */}
-                      <td style={{ padding: '10px 14px' }}>
+                      <td data-label="After" style={{ padding: '10px 14px' }}>
                         <span style={{
                           display: 'inline-block',
                           fontSize: 12.5, fontWeight: 600,
@@ -505,18 +537,17 @@ export default function StockHistory({ dark: darkProp }) {
                           border: `1px solid ${h.newStock === 0 ? 'var(--red-border)' : isPositive ? 'var(--border)' : 'var(--yellow-border)'}`,
                           color: h.newStock === 0 ? 'var(--red-text)' : isPositive ? 'var(--green)' : 'var(--amber)',
                         }}>{h.newStock ?? '—'}</span>
-                        <div style={{ fontSize: 10, color: 'var(--ink-faint)', marginTop: 2, fontWeight: 300 }}>{t('stock.after')}</div>
                       </td>
 
                       {/* Reason */}
-                      <td style={{ padding: '10px 14px', maxWidth: 160 }}>
-                        <div style={{ fontSize: 12, color: 'var(--ink-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 300 }}>
+                      <td data-label="Reason" style={{ padding: '10px 14px' }}>
+                        <div style={{ fontSize: 12, color: 'var(--ink-mid)', fontWeight: 300 }}>
                           {h.reason || '—'}
                         </div>
                       </td>
 
                       {/* User */}
-                      <td style={{ padding: '10px 14px' }}>
+                      <td data-label="User" style={{ padding: '10px 14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                           <div style={{
                             width: 26, height: 26, borderRadius: '50%',
@@ -532,7 +563,7 @@ export default function StockHistory({ dark: darkProp }) {
                       </td>
 
                       {/* Delete */}
-                      <td style={{ padding: '10px 14px' }}>
+                      <td className="abk-td-actions" style={{ padding: '10px 14px' }}>
                         <button
                           onClick={() => setDeleteConfirm(h)}
                           style={{

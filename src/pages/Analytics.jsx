@@ -82,6 +82,8 @@ const GLOBAL_CSS = `
     .abk-ana-grid-3 { grid-template-columns: 1fr !important; }
     .abk-ana-filter { flex-direction: column !important; }
     .abk-ana-filter > * { width: 100% !important; }
+    /* Rank cards: 2 per row on phone instead of 5 */
+    .abk-ana-rank-grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
   }
 
   @media (max-width:480px) {
@@ -652,7 +654,8 @@ export default function Analytics({ dark: darkProp }) {
                 </div>
 
                 {/* Mini rank cards */}
-                <div className="abk-ana-kpi-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0,1fr))', gap: 6 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0,1fr))', gap: 6 }}
+                  className="abk-ana-rank-grid">
                   {(activeTab === 'top' ? top5 : bottom5).map((item, i) => {
                     const isTop = activeTab === 'top';
                     const color = isTop ? topBarColors[i] : bottomBarColors[i];
