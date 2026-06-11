@@ -406,7 +406,7 @@ function ProductAutocomplete({ products, value, onChange, placeholder }) {
    ════════════════════════════════════════════════════════════════════════════ */
 export default function Products({ dark, user }) {
   // ── Role flags ────────────────────────────────────────────────────────
-  // WORKER: read-only (no add, edit, delete, or stock adjustment)
+  // WORKER: full access (add, edit, delete, stock adjustment)
   // ADMIN:  full access
   const isAdmin  = user?.role?.toUpperCase() === 'ADMIN';
   const isWorker = user?.role?.toUpperCase() === 'WORKER';
@@ -577,8 +577,8 @@ export default function Products({ dark, user }) {
             >
               <RefreshCw size={12} /> Refresh
             </button>
-            {/* Add product button — ADMIN only */}
-            {isAdmin && (
+            {/* Add product button — ADMIN and WORKER */}
+            {(isAdmin || isWorker) && (
             <button onClick={openCreate} style={{
               display:'inline-flex', alignItems:'center', gap:6, padding:'8px 16px',
               background:'var(--green)', color:'#fff', border:'none', borderRadius:11,
@@ -716,10 +716,10 @@ export default function Products({ dark, user }) {
                       <td data-label="Status" style={{ padding:'11px 14px' }}>
                         <Pill bg={sc.bg} color={sc.color} border={sc.border}>{sc.label}</Pill>
                       </td>
-                      {/* Actions — edit/delete/stock-adjust for ADMIN only; worker sees read-only indicator */}
+                      {/* Actions — edit/delete/stock-adjust for ADMIN and WORKER */}
                       <td className="abk-td-actions" style={{ padding:'11px 14px' }}>
                         <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                          {isAdmin ? (
+                          {(isAdmin || isWorker) ? (
                             <>
                               <button onClick={() => openEdit(p)} className="abk-btn-icon" style={{ width:28, height:28, background:'var(--blue-bg)', color:'var(--blue)', border:'1px solid rgba(24,95,165,.2)' }} title="Edit">
                                 <Edit2 size={12} />
@@ -731,10 +731,7 @@ export default function Products({ dark, user }) {
                                 <SlidersHorizontal size={12} />
                               </button>
                             </>
-                          ) : (
-                            /* Worker: show "View only" label */
-                            <span style={{ fontSize:10, color:'var(--ink-faint)', fontStyle:'italic', padding:'2px 6px' }}>View only</span>
-                          )}
+                          ) : null}
                         </div>
                       </td>
                     </tr>
