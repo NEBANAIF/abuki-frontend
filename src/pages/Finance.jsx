@@ -767,6 +767,10 @@ export default function Finance({ dark }) {
                 <span style={{ fontSize:11, color:'var(--ink-faint)', fontWeight:300 }}>{t('finance.clickRow')}</span>
               </div>
               <div className="abk-fin-table-wrap abk-fin-scroll-table" style={{ overflowX:'auto', borderRadius:'0 0 16px 16px' }}>
+                <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                  <thead>
+                    <tr style={{ background:'var(--cream-deep)', borderBottom:'1px solid var(--border)' }}>
+                      {[t('finance.period'), t('finance.revenue'), t('finance.cogs'), t('finance.grossProfit'), t('finance.expenses'), t('finance.netProfit'), t('finance.margin')].map(h => (
                         <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:10, fontWeight:600, letterSpacing:'0.10em', textTransform:'uppercase', color:'var(--ink-light)', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                     </tr>
