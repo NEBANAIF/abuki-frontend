@@ -405,8 +405,8 @@ export default function UserAccess({ dark: darkProp }) {
             ) : (
               <div className="abk-usr-modal-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 10, marginBottom: 14 }}>
                 {paginated.map((u, i) => {
-                  const rc = ROLE_COLORS[u.role] || ROLE_COLORS.VIEWER;
-                  const role = ROLES.find(r => r.value === u.role) || ROLES[3];
+                  const rc = ROLE_COLORS[u.role] || ROLE_COLORS.WORKER;
+                  const role = ROLES.find(r => r.value === u.role) || ROLES[1];
                   return (
                     <div key={u.id} className="abk-anim-scale-in" style={{
                       background: 'var(--card)', border: '1px solid var(--border)',
@@ -517,7 +517,7 @@ export default function UserAccess({ dark: darkProp }) {
         {activeTab === 'roles' && (
           <div className="abk-usr-modal-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 10 }}>
             {ROLES.map((role, i) => {
-              const rc = ROLE_COLORS[role.value] || ROLE_COLORS.VIEWER;
+              const rc = ROLE_COLORS[role.value] || ROLE_COLORS.WORKER;
               return (
                 <div key={role.value} className="abk-anim-scale-in" style={{
                   background: 'var(--card)', border: '1px solid var(--border)',
@@ -643,7 +643,7 @@ export default function UserAccess({ dark: darkProp }) {
                 <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.10em', marginBottom: 8 }}>{t('users.role')} *</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 6 }}>
                   {ROLES.map(r => {
-                    const rc = ROLE_COLORS[r.value] || ROLE_COLORS.VIEWER;
+                    const rc = ROLE_COLORS[r.value] || ROLE_COLORS.WORKER;
                     const selected = form.role === r.value;
                     return (
                       <button key={r.value} onClick={() => handleRoleChange(r.value)} style={{
