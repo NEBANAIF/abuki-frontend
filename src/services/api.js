@@ -16,22 +16,59 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// ── Attach JWT token to every request ─────────────────────────────────────
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('abuki_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// ── Attach JWT + session-health management (request + response interceptors below) ──
+//
+// WHY the debounce:
+//   The backend runs on Render free tier and cold-starts after ~15 min idle.
+//   Right after login, several requests fire at once (Dashboard, Sales, etc.).
+//   If the backend isn't fully up yet, those requests can return 401 before the
+//   token is ever invalid — causing an immediate logout loop.
+//
+//   The debounce waits 4 s before actually wiping the session. If the backend
+//   wakes up within that window the subsequent retries will succeed and the
+//   timer gets cancelled. A genuinely expired / invalid token will still
+//   produce a consistent 401 on every request, so the logout fires after 4 s.
+//
+let _logoutTimer = null;
 
-// ── Handle 401 (session invalid) and 403 (role denied) ────────────────────
-api.interceptors.response.use(
-  res => res,
-  err => {
-    // 401 — token expired or missing → force logout
-    if (err.response?.status === 401) {
+function scheduleLogout() {
+  if (_logoutTimer) return; // already scheduled
+  _logoutTimer = setTimeout(() => {
+    _logoutTimer = null;
+    // Double-check: if token is still present it means no successful request
+    // cancelled the timer → session really is invalid → log out.
+    if (localStorage.getItem('abuki_token')) {
       localStorage.removeItem('abuki_token');
       localStorage.removeItem('abuki_user');
       if (!window.location.pathname.includes('login')) window.location.href = '/';
+    }
+  }, 4000);
+}
+
+function cancelLogout() {
+  if (_logoutTimer) {
+    clearTimeout(_logoutTimer);
+    _logoutTimer = null;
+  }
+}
+
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('abuki_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+    cancelLogout(); // a new request with a valid token means session is alive
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  res => {
+    cancelLogout(); // successful response → session is fine, cancel any pending logout
+    return res;
+  },
+  err => {
+    if (err.response?.status === 401) {
+      scheduleLogout(); // debounced — won't fire immediately
     }
     // Extract the best error message from response body
     const data = err.response?.data;

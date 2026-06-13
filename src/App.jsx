@@ -56,11 +56,23 @@ export default function App() {
     try { localStorage.setItem('abuki_theme', dark ? 'dark' : 'light'); } catch {}
   }, [dark]);
 
-  // ── Keep-alive ping every 2 minutes to prevent Render cold starts ─────
+  // ── Keep-alive ping every 4 minutes to prevent Render cold starts ──────
+  //
+  // WHY no `mode: 'no-cors'`:
+  //   `no-cors` silently swallows the response, so the browser never actually
+  //   opens a real HTTP connection to the backend — Render never sees it and
+  //   the service still goes to sleep. A plain fetch() sends a real request
+  //   that Render counts as activity. We silence errors so a sleeping backend
+  //   doesn't surface anything to the user.
+  //
+  // WHY 4 minutes (not 2):
+  //   Render free tier sleeps after 15 minutes of inactivity. 4-minute pings
+  //   keep it warm with plenty of margin and reduce unnecessary requests.
+  //
   useEffect(() => {
-    const ping = () => fetch(`${BACKEND}/actuator/health`, { method: 'GET', mode: 'no-cors' }).catch(() => {});
-    ping();
-    const id = setInterval(ping, 120_000);
+    const ping = () => fetch(`${BACKEND}/actuator/health`).catch(() => {});
+    ping(); // immediate ping on mount so backend is warm before first real request
+    const id = setInterval(ping, 4 * 60_000);
     return () => clearInterval(id);
   }, []);
 
