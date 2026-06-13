@@ -368,6 +368,15 @@
     "typeReturn": "መመለሻ",
     "typeDiscard": "ተጣለ"
   },
+  "loans": {
+  "errorTitle": "የግንኙነት ስህተት",
+  "errorMsg": "የብድር ዳታ መጫን አልተቻለም። እንደገና ይሞክሩ።",
+  "retry": "እንደገና ሞክር",
+  "paymentMin": "ከ 0 በላይ የሆነ ክፍያ ያስገቡ።",
+  "paymentMax": "ክፍያ ${{max}} ቀሪ ሂሳብ ሊያልፍ አይችልም።",
+  "failedSave": "ክፍያ ማስቀመጥ አልተቻለም።",
+  "failedDelete": "መሰረዝ አልተቻለም።"
+},
   "users": {
     "title": "ተጠቃሚ አስተዳደር",
     "subtitle": "ተጠቃሚዎችን፣ ሚናዎችን እና ፍቃዶችን ያስተዳድሩ",

@@ -3,7 +3,7 @@ import {
   Landmark, Search, RefreshCw, X, XCircle, CheckCircle,
   Trash2, Pencil, ChevronLeft, ChevronRight, Calendar,
 } from 'lucide-react';
-import { getSales, updateSalePayment, deleteSale } from '../services/api';
+import { getSales, getSalesToday, updateSalePayment, deleteSale } from '../services/api';
 import { localYMD, normalizeSaleDate } from '../utils/dateUtils';
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -243,7 +243,8 @@ function KpiCard({ label, value, sub, Icon, stripeColor, iconBg, iconColor, prog
    Loans page
    ════════════════════════════════════════════════════════════════════════════ */
 export default function Loans({ dark, user }) {
-  const isAdmin = user?.role?.toUpperCase() === 'ADMIN';
+  const isAdmin  = user?.role?.toUpperCase() === 'ADMIN';
+  const isWorker = user?.role?.toUpperCase() === 'WORKER';
 
   useEffect(() => {
     const id = 'abk-loans-css';
@@ -268,12 +269,13 @@ export default function Loans({ dark, user }) {
   // Edit form state — tracks additional payment amount
   const [additionalPay, setAdditionalPay] = useState('');
 
-  useEffect(() => { loadLoans(); }, []);
+  useEffect(() => { if (user !== undefined) loadLoans(); }, [user]);
 
   async function loadLoans() {
     try {
       setLoading(true); setError(null);
-      const all = await getSales();
+      // ADMIN: fetch all sales; WORKER: fetch today's sales only (getSales returns 403 for workers)
+      const all = isAdmin ? await getSales() : await getSalesToday();
       // Only show PARTIAL_LOAN sales (remainingLoan > 0)
       setLoans(all.filter(s => s.paymentStatus === 'PARTIAL_LOAN' && (s.remainingLoan ?? 0) > 0));
     } catch {

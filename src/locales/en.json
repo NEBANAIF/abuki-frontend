@@ -169,6 +169,9 @@
     "title": "Sales",
     "subtitle": "Manage all sales transactions",
     "recordSale": "Record Sale",
+    "errorTitle": "Connection Error",
+    "errorConnect": "Could not connect to the server. Make sure Spring Boot is running on port 8080.",
+    "tryAgain": "Try Again" ,
     "todayRevenue": "Today's Revenue",
     "todaySales": "Today's Sales",
     "totalRevenue": "Total Revenue",
@@ -204,6 +207,15 @@
     "saleOf": "Sale of",
     "on": "on"
   },
+"loans": {
+  "errorTitle": "Connection Error",
+  "errorMsg": "Could not load loan data. Please try again.",
+  "retry": "Retry",
+  "paymentMin": "Enter a payment amount greater than 0.",
+  "paymentMax": "Payment cannot exceed outstanding balance of ${{max}}.",
+  "failedSave": "Failed to save payment.",
+  "failedDelete": "Failed to delete."
+},
   "finance": {
     "title": "Finance",
     "subtitle": "Track expenses and profit",

@@ -457,7 +457,7 @@ export default function Sales({ dark, user }) {
   const [periodSummary,  setPeriodSummary]  = useState(null);
   const [allTimeSummary, setAllTimeSummary] = useState(null);
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { if (user !== undefined) loadAll(); }, [user]);
 
   async function loadAll() {
     try {
